@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -44,9 +42,14 @@ namespace reillyd_service
             _logger = logger;
         }
 
+        // P/Invoke methods are supposed to use the same naming as the underlying native method
+        #pragma warning disable IDE1006
         [DllImport("libc", EntryPoint = "gettimeofday")]
         private static extern int gettimeofday(TimeVal timeVal, TimeZone timeZone);
 
+        [DllImport("libc", EntryPoint = "getpid")]
+        private static extern int getpid();
+        #pragma warning restore IDE1006
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -61,12 +64,13 @@ namespace reillyd_service
             while (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-                await Task.Delay(1000, stoppingToken);
+                await Task.Delay(
+                    1000,
+                    stoppingToken);
             }
         }
 
-        [DllImport("libc", EntryPoint = "getpid")]
-        private static extern int getpid();
+
 
         public static bool Tester() => true;
     }

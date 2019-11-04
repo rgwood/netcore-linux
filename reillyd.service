@@ -1,0 +1,9 @@
+[Unit]
+Description=Reilly's second daemon test
+
+[Service]
+Type=notify
+ExecStart=/home/reilly/source/reillyd/reillyd-service/bin/Debug/netcoreapp3.0/linux-x64/publish/reillyd-service
+
+[Install]
+WantedBy=multi-user.target

@@ -1,9 +1,12 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
+using Mono.Unix.Native;
+using System.Linq;
 
 namespace reillyd_service
 {
@@ -54,7 +57,33 @@ namespace reillyd_service
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation($"Current OS: {Environment.OSVersion.Platform}");
-            _logger.LogInformation($"Current PID: {getpid()}");
+
+            var pid = Syscall.getpid();
+            Console.WriteLine($"Current PID: {pid}");
+
+            var procDirectory = $"/proc/{pid}";
+            var openFdPaths = Directory.EnumerateFiles($"{procDirectory}/fd");
+
+            var openRegularFiles = openFdPaths.Select(p => new 
+                                    {
+                                        symlinkPath = p,
+                                        linkTargetPath = Mono.Unix.UnixPath.ReadLink(p),
+                                        fd = int.Parse(p.Substring(procDirectory.Length + 4)),
+                                    })
+                                    .Where(f => IsRegularFile(f.fd));
+            
+
+            Console.WriteLine("Files that this process has open:");
+
+            foreach(var f in openRegularFiles) {
+                Console.WriteLine(f.linkTargetPath);
+            }
+
+            // using (StreamReader sr = new StreamReader($"{procDirectory}/status"))
+            // {
+            //     string file = await sr.ReadToEndAsync();
+            //     _logger.LogInformation(file);
+            // }
 
             var tv = new TimeVal();
             gettimeofday(tv, null);
@@ -70,8 +99,14 @@ namespace reillyd_service
             }
         }
 
-
-
+        private static bool IsRegularFile(int fd)
+        {
+            Stat fstatResult;
+            Syscall.fstat(fd, out fstatResult);
+            var fileTypeBits = fstatResult.st_mode & FilePermissions.S_IFMT;
+            return fileTypeBits == FilePermissions.S_IFREG;
+        }
+        
         public static bool Tester() => true;
     }
 }
